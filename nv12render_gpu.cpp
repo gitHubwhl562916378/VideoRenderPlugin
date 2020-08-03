@@ -1,4 +1,5 @@
 /*
+ *
  * @Author: your name
  * @Date: 2020-08-02 11:10:34
  * @LastEditTime: 2020-08-02 23:46:45
@@ -6,18 +7,24 @@
  * @Description: In User Settings Edit
  * @FilePath: \vs_code\Nv12Render_Gpu\nv12render_gpu.cpp
  */ 
+
+#ifdef WIN32
+#include <Windows.h>
+#endif // WIN32
 #include <cuda_runtime.h>
 #include <cudaGL.h>
 #include "nv12render_gpu.h"
 
 Nv12Render_Gpu::~Nv12Render_Gpu()
 {
+	cuGraphicsUnregisterResource(cuda_tex_resource[ybuffer_id]);
+	cuGraphicsUnregisterResource(cuda_tex_resource[uvbuffer_id]);
     vbo.destroy();
     glDeleteTextures(sizeof(textures) / sizeof(GLuint), textures);
     glDeleteBuffers(sizeof(tex_buffers)/sizeof(GLuint), tex_buffers);
 }
 
-void Nv12Render_Gpu::initialize(const int width, const int height, bool horizontal = false, bool vertical = false)
+void Nv12Render_Gpu::initialize(const int width, const int height, bool horizontal, bool vertical)
 {
     initializeOpenGLFunctions();
     const char *vsrc =
@@ -165,17 +172,12 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr,int w,int h)
 
     // cudaGraphicsMapResources(1,&cuda_tex_resource,0);
     cuGraphicsMapResources(2, cuda_tex_resource, 0);
-    CUdeviceptr dpBackBuffers[2];
-    size_t buffer_size[2];
-    cuGraphicsResourceGetMappedPointer(dpBackBuffers, buffer_size, cuda_tex_resource);
-    CUdeviceptr d_ybuffer = dpBackBuffers[ybuffer_id];
-    size_t d_y_size = buffer_size[ybuffer_id];
-    CUdeviceptr d_uvbuffer = dpBackBuffers[uvbuffer_id];
-    size_t d_uv_size = buffer_size[uvbuffer_id];
-
+	CUdeviceptr d_ybuffer;
+	size_t d_y_size;
+    cuGraphicsResourceGetMappedPointer(&d_ybuffer, &d_y_size, cuda_tex_resource[ybuffer_id]);
     CUDA_MEMCPY2D m = { 0 };
     m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
-    m.srcDevice = nv12_dPtr;
+    m.srcDevice = reinterpret_cast<CUdeviceptr>(nv12_dPtr);
     m.srcPitch = w;
     m.dstMemoryType = CU_MEMORYTYPE_DEVICE;
     m.dstDevice = d_ybuffer;
@@ -184,8 +186,11 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr,int w,int h)
     m.Height = h;
     cuMemcpy2DAsync(&m, 0);
 
+	CUdeviceptr d_uvbuffer;
+	size_t d_uv_size;
+	cuGraphicsResourceGetMappedPointer(&d_uvbuffer, &d_uv_size, cuda_tex_resource[uvbuffer_id]);
     m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
-    m.srcDevice = nv12_dPtr + w * h;
+    m.srcDevice = reinterpret_cast<CUdeviceptr>(nv12_dPtr + w * h);
     m.srcPitch = w;
     m.dstMemoryType = CU_MEMORYTYPE_DEVICE;
     m.dstDevice = d_uvbuffer;
@@ -193,9 +198,7 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr,int w,int h)
     m.WidthInBytes = w;
     m.Height = (h>>1);
     cuMemcpy2DAsync(&m, 0);
-
     cuGraphicsUnmapResources(2, cuda_tex_resource, 0);
-    cuGraphicsUnregisterResource(cuda_tex_resource);
 
     program.bind();
     vbo.bind();

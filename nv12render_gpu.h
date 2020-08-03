@@ -6,12 +6,11 @@
  * @Description: In User Settings Edit
  * @FilePath: \vs_code\Nv12Render_Gpu\nv12render_gpu.h
  */ 
-
-#include <cuda_gl_interop.h>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
 #include <QOpenGLTexture>
+#include <cuda_gl_interop.h>
 #include "videorender.h"
 
 class Nv12Render_Gpu : public QOpenGLFunctions, public VideoRender
