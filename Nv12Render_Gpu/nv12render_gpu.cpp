@@ -180,7 +180,7 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, uvbuffer_id);
     glBufferData(GL_PIXEL_UNPACK_BUFFER_ARB, width * height* sizeof(char) / 2, nullptr, GL_STREAM_DRAW_ARB);
 	
-    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_DEPTH_TEST); //打开会在窗口大小变化时，黑屏，opengl报错。实际这里也不需要打开。
 
     ck(cuCtxSetCurrent(context));
     ck(cuGraphicsGLRegisterBuffer(&cuda_ybuffer_resource, ybuffer_id, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
@@ -190,7 +190,7 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
 void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int height)
 {    
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+ //   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //打开会在黑屏与正常视频之间闪屏
     if(!nv12_dPtr)
     {
         return;
