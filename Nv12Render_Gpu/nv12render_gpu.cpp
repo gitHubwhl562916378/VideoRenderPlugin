@@ -179,6 +179,8 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, uvbuffer_id);
     glBufferData(GL_PIXEL_UNPACK_BUFFER_ARB, width * height* sizeof(char) / 2, nullptr, GL_STREAM_DRAW_ARB);
+	
+    glDisable(GL_DEPTH_TEST);
 
     ck(cuCtxSetCurrent(context));
     ck(cuGraphicsGLRegisterBuffer(&cuda_ybuffer_resource, ybuffer_id, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
@@ -186,7 +188,9 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
 }
 
 void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int height)
-{
+{    
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     if(!nv12_dPtr)
     {
         return;
@@ -252,6 +256,8 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int
 
 void Nv12Render_Gpu::render(unsigned char* planr[], int line_size[], const int width, const int height)
 {
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     if(!planr)
     {
         return;
