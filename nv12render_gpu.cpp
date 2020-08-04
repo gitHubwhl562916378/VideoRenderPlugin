@@ -2,7 +2,7 @@
  *
  * @Author: your name
  * @Date: 2020-08-02 11:10:34
- * @LastEditTime: 2020-08-03 17:59:01
+ * @LastEditTime: 2020-08-04 11:08:07
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: \vs_code\Nv12Render_Gpu\nv12render_gpu.cpp
@@ -193,9 +193,9 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int
     }
 
     ck(cuCtxSetCurrent(context));
-    ck(cuGraphicsMapResources(1, &cuda_ybuffer_resource, 0));
     CUdeviceptr d_ybuffer;
     size_t d_y_size;
+    ck(cuGraphicsMapResources(1, &cuda_ybuffer_resource, 0));
     ck(cuGraphicsResourceGetMappedPointer(&d_ybuffer, &d_y_size, cuda_ybuffer_resource));
     CUDA_MEMCPY2D m = { 0 };
     m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
@@ -211,6 +211,7 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int
 
     CUdeviceptr d_uvbuffer;
     size_t d_uv_size;
+    ck(cuGraphicsMapResources(1, &cuda_uvbuffer_resource, 0));
     ck(cuGraphicsResourceGetMappedPointer(&d_uvbuffer, &d_uv_size, cuda_uvbuffer_resource));
     m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
     m.srcDevice = reinterpret_cast<CUdeviceptr>(nv12_dPtr + width * height);
@@ -312,4 +313,9 @@ void Nv12Render_Gpu::render(unsigned char* planr[], int line_size[], const int w
     program.disableAttributeArray("textureIn");
     vbo.release();
     program.release();
+}
+
+VideoRender* createRender()
+{
+    return new Nv12Render_Gpu;
 }
