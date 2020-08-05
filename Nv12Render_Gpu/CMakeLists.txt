@@ -2,9 +2,12 @@ cmake_minimum_required(VERSION 3.9)
 
 Project(Nv12Render_Gpu VERSION 1.0
         LANGUAGES CXX CUDA)
-		
+
+set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)       #设置可执行文件的输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)           #设置库文件的输出目录
+set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -std=c++11") 
+# add_compile_options(-std=c++11)
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/..
 )

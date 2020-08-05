@@ -11,6 +11,7 @@
 #ifdef _WIN32
 #include <Windows.h>
 #endif // WIN32
+#include <QMutex>
 #include "nv12render_gpu.h"
 
 inline bool check(int e, int iLine, const char *szFile) {
@@ -44,9 +45,12 @@ Nv12Render_Gpu::~Nv12Render_Gpu()
     glDeleteBuffers(sizeof(tex_buffers)/sizeof(GLuint), tex_buffers);
 }
 
+Q_GLOBAL_STATIC(QMutex, initMutex)
 void Nv12Render_Gpu::initialize(const int width, const int height, const bool horizontal, const bool vertical)
 {
     initializeOpenGLFunctions();
+
+	QMutexLocker initLock(initMutex());
     const char *vsrc =
             "attribute vec4 vertexIn; \
              attribute vec4 textureIn; \
@@ -180,7 +184,7 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, uvbuffer_id);
     glBufferData(GL_PIXEL_UNPACK_BUFFER_ARB, width * height* sizeof(char) / 2, nullptr, GL_STREAM_DRAW_ARB);
 	
-    glDisable(GL_DEPTH_TEST); //´ò¿ª»áÔÚ´°¿Ú´óÐ¡±ä»¯Ê±£¬ºÚÆÁ£¬opengl±¨´í¡£Êµ¼ÊÕâÀïÒ²²»ÐèÒª´ò¿ª¡£
+    glDisable(GL_DEPTH_TEST); //ï¿½ò¿ª»ï¿½ï¿½Ú´ï¿½ï¿½Ú´ï¿½Ð¡ï¿½ä»¯Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½openglï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½Òªï¿½ò¿ª¡ï¿½
 
     ck(cuCtxSetCurrent(context));
     ck(cuGraphicsGLRegisterBuffer(&cuda_ybuffer_resource, ybuffer_id, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
@@ -190,7 +194,7 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
 void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int height)
 {    
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
- //   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //´ò¿ª»áÔÚºÚÆÁÓëÕý³£ÊÓÆµÖ®¼äÉÁÆÁ
+ //   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //ï¿½ò¿ª»ï¿½ï¿½Úºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÆµÖ®ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     if(!nv12_dPtr)
     {
         return;
