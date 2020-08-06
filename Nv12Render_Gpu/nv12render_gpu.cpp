@@ -2,7 +2,7 @@
  *
  * @Author: your name
  * @Date: 2020-08-02 11:10:34
- * @LastEditTime: 2020-08-04 11:08:07
+ * @LastEditTime: 2020-08-05 19:26:59
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: \vs_code\Nv12Render_Gpu\nv12render_gpu.cpp
@@ -24,25 +24,39 @@ inline bool check(int e, int iLine, const char *szFile) {
 
 #define ck(call) check(call, __LINE__, __FILE__)
 
-Nv12Render_Gpu::Nv12Render_Gpu()
+Nv12Render_Gpu::Nv12Render_Gpu(CUcontext ctx):
+	context(ctx)
 {
-    ck(cuInit(0));
-    CUdevice cuDevice;
-    ck(cuDeviceGet(&cuDevice, 0));
-    char szDeviceName[80];
-    ck(cuDeviceGetName(szDeviceName, sizeof(szDeviceName), cuDevice));
-    qDebug() << "GPU in use: " << szDeviceName;
-    ck(cuCtxCreate(&context, CU_CTX_SCHED_BLOCKING_SYNC, cuDevice));
+	qDebug() << "Nv12Render_Gpu::Nv12Render_Gpu context: " << reinterpret_cast<unsigned long long>(context);
+	if (!context)
+	{
+		ck(cuInit(0));
+		CUdevice cuDevice;
+		ck(cuDeviceGet(&cuDevice, 0));
+		char szDeviceName[80];
+		ck(cuDeviceGetName(szDeviceName, sizeof(szDeviceName), cuDevice));
+		qDebug() << "GPU in use: " << szDeviceName;
+		ck(cuCtxCreate(&context, CU_CTX_SCHED_BLOCKING_SYNC, cuDevice));
+		need_destroy_ = true;
+	}
 }
 
 Nv12Render_Gpu::~Nv12Render_Gpu()
 {
-    ck(cuGraphicsUnregisterResource(cuda_ybuffer_resource));
-    ck(cuGraphicsUnregisterResource(cuda_uvbuffer_resource));
-    ck(cuCtxDestroy(context));
+	qDebug() << "Nv12Render_Gpu::~Nv12Render_Gpu() in";
+	ck(cuGraphicsUnregisterResource(cuda_ybuffer_resource));
+	ck(cuGraphicsUnregisterResource(cuda_uvbuffer_resource));
+	if (need_destroy_) {
+		ck(cuCtxDestroy(context));
+	    qDebug() << "Nv12Render_Gpu::~Nv12Render_Gpu() context destroy" << reinterpret_cast<unsigned long long>(context);
+	}
+	else {
+		qDebug() << "Nv12Render_Gpu::~Nv12Render_Gpu() context from out";
+	}
     vbo.destroy();
     glDeleteTextures(sizeof(textures) / sizeof(GLuint), textures);
     glDeleteBuffers(sizeof(tex_buffers)/sizeof(GLuint), tex_buffers);
+	qDebug() << "Nv12Render_Gpu::~Nv12Render_Gpu() out";
 }
 
 Q_GLOBAL_STATIC(QMutex, initMutex)
@@ -186,9 +200,9 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
 	
     glDisable(GL_DEPTH_TEST); //�򿪻��ڴ��ڴ�С�仯ʱ��������opengl������ʵ������Ҳ����Ҫ�򿪡�
 
-    ck(cuCtxSetCurrent(context));
-    ck(cuGraphicsGLRegisterBuffer(&cuda_ybuffer_resource, ybuffer_id, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
-    ck(cuGraphicsGLRegisterBuffer(&cuda_uvbuffer_resource, uvbuffer_id, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
+	ck(cuCtxSetCurrent(context));
+	ck(cuGraphicsGLRegisterBuffer(&cuda_ybuffer_resource, ybuffer_id, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
+	ck(cuGraphicsGLRegisterBuffer(&cuda_uvbuffer_resource, uvbuffer_id, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
 }
 
 void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int height)
@@ -214,7 +228,7 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int
     m.dstPitch = d_y_size / height;
     m.WidthInBytes = width;
     m.Height = height;
-    ck(cuMemcpy2DAsync(&m, 0));
+    ck(cuMemcpy2D(&m));
     ck(cuGraphicsUnmapResources(1, &cuda_ybuffer_resource, 0));
 
     CUdeviceptr d_uvbuffer;
@@ -229,8 +243,9 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int
     m.dstPitch = d_uv_size / (height>>1);
     m.WidthInBytes = width;
     m.Height = (height>>1);
-    ck(cuMemcpy2DAsync(&m, 0));
+    ck(cuMemcpy2D(&m));
     ck(cuGraphicsUnmapResources(1, &cuda_uvbuffer_resource, 0));
+	ck(cuCtxSetCurrent(nullptr));
 
     program.bind();
     vbo.bind();
@@ -298,6 +313,7 @@ void Nv12Render_Gpu::render(unsigned char* planr[], int line_size[], const int w
     m.Height = (height>>1);
     ck(cuMemcpy2DAsync(&m, 0));
     ck(cuGraphicsUnmapResources(1, &cuda_uvbuffer_resource, 0));
+	ck(cuCtxSetCurrent(nullptr));
 
     program.bind();
     vbo.bind();
@@ -325,7 +341,7 @@ void Nv12Render_Gpu::render(unsigned char* planr[], int line_size[], const int w
     program.release();
 }
 
-VideoRender* createRender()
+VideoRender* createRender(void *ctx)
 {
-    return new Nv12Render_Gpu;
+    return new Nv12Render_Gpu((CUcontext)ctx);
 }

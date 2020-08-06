@@ -1,11 +1,12 @@
 /*
  * @Author: whl
  * @Date: 2020-08-02 11:06:45
- * @LastEditTime: 2020-08-03 17:58:39
+ * @LastEditTime: 2020-08-06 09:05:43
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: \vs_code\Nv12Render_Gpu\nv12render_gpu.h
  */
+#pragma once
 #include <QOpenGLShaderProgram>
 #include <QOpenGLFunctions>
 #include <QOpenGLBuffer>
@@ -17,7 +18,7 @@
 class Nv12Render_Gpu : public QOpenGLFunctions, public VideoRender
 {
 public:
-    Nv12Render_Gpu();
+    Nv12Render_Gpu(CUcontext ctx);
     ~Nv12Render_Gpu();
     /**
      * @description: 初始化渲染器
@@ -50,4 +51,5 @@ private:
     GLuint idY,idUV, textures[2];
     GLuint ybuffer_id, uvbuffer_id, tex_buffers[2];
     QOpenGLBuffer vbo;
+	bool need_destroy_ = false;
 };

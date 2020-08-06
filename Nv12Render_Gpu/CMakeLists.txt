@@ -27,15 +27,15 @@ set(CMAKE_AUTOMOC ON) #自动生成moc文件
 set(CMAKE_AUTORCC ON) #自动处理rcc文件
 set(CMAKE_AUTOUIC ON) #自动处理uic
 #查找当前文件夹中的所有源代码文件，也可以通过Set命令将所有文件设置为一个变量
-FILE(GLOB SRC_FILES "./*.cpp")
+FILE(GLOB SRC_FILES *.cpp *.cu)
 #同理，查找当前文件夹中所有的头文件
-FILE(GLOB HEAD_FILES "./*.h") 
+FILE(GLOB HEAD_FILES *.h) 
 #同理，查找当前文件夹中所有的ui文件
-FILE(GLOB UI_FILES "./*.ui")
+FILE(GLOB UI_FILES *.ui)
 #通过Ui文件生成对应的头文件，一定要添加
 # qt5_wrap_ui(WRAP_FILES ${UI_FILES})
 
 aux_source_directory(. SRCS)
-add_library(${PROJECT_NAME} SHARED ${SRCS})
+add_library(${PROJECT_NAME} SHARED ${SRC_FILES} ${HEAD_FILES} ${UI_FILES})
 target_link_libraries(${PROJECT_NAME} ${CUDA_CUDA_LIBRARY})
 target_link_libraries(${PROJECT_NAME} Qt5::Core Qt5::Gui)
