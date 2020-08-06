@@ -17,12 +17,6 @@ include_directories(
     ${CUDA_INCLUDE_DIRS}
 )
 
-# set(OpenCV_DIR E:/opencv3.4.0-x64)
-# find_package(OpenCV REQUIRED)
-# include_directories(
-#     ${OpenCV_INCLUDE_DIRS}
-# )
-
 set(Qt5_DIR E:/Qt/Qt5.12.4/5.12.4/msvc2017_64/lib/cmake/Qt5)
 find_package(Qt5 REQUIRED Core Gui)
 include_directories(
@@ -44,4 +38,3 @@ FILE(GLOB UI_FILES *.ui)
 add_library(${PROJECT_NAME} SHARED ${SRC_FILES} ${HEAD_FILES})
 target_link_libraries(${PROJECT_NAME} ${CUDA_CUDA_LIBRARY})
 target_link_libraries(${PROJECT_NAME} Qt5::Core Qt5::Gui)
-# target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
