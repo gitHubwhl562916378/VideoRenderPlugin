@@ -178,6 +178,7 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 
     glBindTexture(GL_TEXTURE_2D,idUV);
@@ -186,6 +187,7 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 
     glGenBuffers(2, tex_buffers);
@@ -194,9 +196,11 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, ybuffer_id);
     glBufferData(GL_PIXEL_UNPACK_BUFFER_ARB, width * height * sizeof(char), nullptr, GL_STREAM_DRAW_ARB);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, uvbuffer_id);
     glBufferData(GL_PIXEL_UNPACK_BUFFER_ARB, width * height* sizeof(char) / 2, nullptr, GL_STREAM_DRAW_ARB);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
 	
     glDisable(GL_DEPTH_TEST); //�򿪻��ڴ��ڴ�С�仯ʱ��������opengl������ʵ������Ҳ����Ҫ�򿪡�
 
@@ -258,11 +262,13 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, ybuffer_id);
     glBindTexture(GL_TEXTURE_2D,idY);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
 
     glActiveTexture(GL_TEXTURE0 + 0);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, uvbuffer_id);
     glBindTexture(GL_TEXTURE_2D,idUV);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width >> 1,height >> 1, GL_RG, GL_UNSIGNED_BYTE, nullptr);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
 
     program.setUniformValue("textureY",1);
     program.setUniformValue("textureUV",0);
@@ -326,11 +332,13 @@ void Nv12Render_Gpu::render(unsigned char* planr[], int line_size[], const int w
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, ybuffer_id);
     glBindTexture(GL_TEXTURE_2D,idY);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
 
     glActiveTexture(GL_TEXTURE0 + 0);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, uvbuffer_id);
     glBindTexture(GL_TEXTURE_2D,idUV);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width >> 1,height >> 1, GL_RG, GL_UNSIGNED_BYTE, nullptr);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
 
     program.setUniformValue("textureY",1);
     program.setUniformValue("textureUV",0);
