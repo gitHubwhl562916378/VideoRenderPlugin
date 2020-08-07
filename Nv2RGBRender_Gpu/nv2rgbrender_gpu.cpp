@@ -16,7 +16,7 @@ inline bool check(int e, int iLine, const char *szFile)
 
 Nv2RGBRender_Gpu::Nv2RGBRender_Gpu(CUcontext ctx) : context(ctx)
 {
-	qDebug() << "Nv12Render_Gpu::Nv12Render_Gpu context: " << reinterpret_cast<unsigned long long>(context);
+	qDebug() << "Nv2RGBRender_Gpu::Nv2RGBRender_Gpu context: " << reinterpret_cast<unsigned long long>(context);
 	if (!context)
 	{
 		ck(cuInit(0));
@@ -32,16 +32,16 @@ Nv2RGBRender_Gpu::Nv2RGBRender_Gpu(CUcontext ctx) : context(ctx)
 
 Nv2RGBRender_Gpu::~Nv2RGBRender_Gpu()
 {
-	qDebug() << "Nv12Render_Gpu::~Nv12Render_Gpu() in";
+	qDebug() << "Nv2RGBRender_Gpu::~Nv2RGBRender_Gpu() in";
 	ck(cuGraphicsUnregisterResource(cuda_tex_resource));
 	if (need_destroy_)
 	{
 		ck(cuCtxDestroy(context));
-		qDebug() << "Nv12Render_Gpu::~Nv12Render_Gpu() context destroy" << reinterpret_cast<unsigned long long>(context);
+		qDebug() << "Nv2RGBRender_Gpu::~Nv2RGBRender_Gpu() context destroy" << reinterpret_cast<unsigned long long>(context);
 	}
 	else
 	{
-		qDebug() << "Nv12Render_Gpu::~Nv12Render_Gpu() context from out";
+		qDebug() << "Nv2RGBRender_Gpu::~Nv2RGBRender_Gpu() context from out";
 	}
 
 	if (d_nv12_ptr)
@@ -51,7 +51,7 @@ Nv2RGBRender_Gpu::~Nv2RGBRender_Gpu()
 	vbo.destroy();
 	glDeleteTextures(1, &texId);
 	glDeleteBuffers(1, &tex_bufferId);
-	qDebug() << "Nv12Render_Gpu::~Nv12Render_Gpu() out";
+	qDebug() << "Nv2RGBRender_Gpu::~Nv2RGBRender_Gpu() out";
 }
 
 Q_GLOBAL_STATIC(QMutex, initMutex)
