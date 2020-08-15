@@ -54,9 +54,11 @@ Nv2RGBRender_Gpu::~Nv2RGBRender_Gpu()
 	qDebug() << "Nv2RGBRender_Gpu::~Nv2RGBRender_Gpu() out";
 }
 
+Q_GLOBAL_STATIC(QMutex, initMutex)
 void Nv2RGBRender_Gpu::initialize(const int width, const int height, const bool horizontal, const bool vertical)
 {
 	initializeOpenGLFunctions();
+	QMutexLocker initLock(initMutex());
 	const char *vsrc =
 		"attribute vec4 vertexIn; \
              attribute vec4 textureIn; \

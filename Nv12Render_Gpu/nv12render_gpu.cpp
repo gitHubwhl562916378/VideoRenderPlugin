@@ -59,9 +59,11 @@ Nv12Render_Gpu::~Nv12Render_Gpu()
 	qDebug() << "Nv12Render_Gpu::~Nv12Render_Gpu() out";
 }
 
+Q_GLOBAL_STATIC(QMutex, initMutex)
 void Nv12Render_Gpu::initialize(const int width, const int height, const bool horizontal, const bool vertical)
 {
     initializeOpenGLFunctions();
+	QMutexLocker initLock(initMutex());
     const char *vsrc =
             "attribute vec4 vertexIn; \
              attribute vec4 textureIn; \
