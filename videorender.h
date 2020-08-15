@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2020-08-02 11:07:26
- * @LastEditTime: 2020-08-05 15:30:10
+ * @LastEditTime: 2020-08-15 14:44:17
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: \vs_code\Nv12Render_Gpu\videorender.h
@@ -20,7 +20,7 @@ class VIDEORENDERSHARED_EXPORT VideoRender
 public:
     virtual ~VideoRender(){}
     /**
-     * @description: åˆå§‹åŒ–openglä¸Šä¸‹æ–‡ï¼Œç¼–è¯‘é“¾æ¥shader;å¦‚æœæ˜¯GPUç›´æ¥ä¸OOPENGLå¯¹æ¥æ•°æ®ï¼Œåˆ™ä¼šåˆ†é…GPUå†…å­˜æˆ–æ³¨å†Œèµ„æº
+     * @description: åˆå§‹åŒ–openglä¸Šä¸‹æ–‡ï¼Œç¼–è¯‘é“¾æ¥shader;å¦‚æœæ˜¯GPUç›´æ¥ä¸OOPENGLå¯¹æ¥æ•°æ®ï¼Œåˆ™ä¼šåˆ†é…GPUå†…å­˜æˆ–æ³¨å†Œèµ„æº?
      * @param width è§†é¢‘å®½åº¦
      * @param height è§†é¢‘é«˜åº¦
      * @param horizontal æ˜¯å¦æ°´å¹³é•œåƒ
@@ -30,18 +30,37 @@ public:
     /**
      * @description: æ¸²æŸ“ä¸€å¸§æ•°æ®ï¼Œbufferéœ€è¦ä¸ºè¿ç»­ç©ºé—´
      * @param buffer å†…å­˜åœ°å€
-     * @param width è§†é¢‘å¸§å®½åº¦
-     * @param height è§†é¢‘å¸§é«˜åº¦
+     * @param width è§†é¢‘å¸§å®½åº?
+     * @param height è§†é¢‘å¸§é«˜åº?
      */
     virtual void render(unsigned char* buffer, const int width, const int height) = 0;
     /**
-     * @description: æ¸²æŸ“ä¸€å¸§åˆ†ç¦»åœ¨å¤šä¸ªplanrçš„æ•°æ®
-     * @param planr å¤šä¸ªå¹³é¢åœ°å€çš„æŒ‡é’ˆæ•°ç»„ã€‚æŒ‰ç…§é»˜è®¤æ ¼å¼æ’åºï¼Œå¦‚YUVä¸º0(Yåˆ†é‡)ã€1(Uåˆ†é‡)ã€2(Våˆ†é‡); NV12ä¸º0(Yåˆ†é‡)ã€1(UVåˆ†é‡)
+     * @description: æ¸²æŸ“ä¸€å¸§åˆ†ç¦»åœ¨å¤šä¸ªplanrçš„æ•°æ?
+     * @param planr å¤šä¸ªå¹³é¢åœ°å€çš„æŒ‡é’ˆæ•°ç»„ã€‚æŒ‰ç…§é»˜è®¤æ ¼å¼æ’åºï¼Œå¦‚YUVä¸?0(Yåˆ†é‡)ã€?1(Uåˆ†é‡)ã€?2(Våˆ†é‡); NV12ä¸?0(Yåˆ†é‡)ã€?1(UVåˆ†é‡)
      * @param line_size äºŒç»´å›¾ç‰‡çš„æ¯è¡Œå­—èŠ‚å¤§å°ï¼Œä¹Ÿæ˜¯GPUå†…å­˜çš„nPitch
-     * @param width è§†é¢‘å¸§å®½åº¦
-     * @param height è§†é¢‘å¸§é«˜åº¦
+     * @param width è§†é¢‘å¸§å®½åº?
+     * @param height è§†é¢‘å¸§é«˜åº?
      */
     virtual void render(unsigned char* planr[], int line_size[], const int width, const int height) = 0;
+    /**
+     * @description: Òì²½¼ÓÔØÊı¾İµ½ÎÆÀí
+     * @param buffer Á¬ĞøÄÚ´æµØÖ·
+     * @param width ÊÓÆµÖ¡¿í¶È
+     * @param height ÊÓÆµÖ¡¸ß¶È
+     */
+    virtual void upLoad(unsigned char* buffer, const int width, const int height) = 0;
+    /**
+     * @description: Òì²½¼ÓÔØÊıÒ»¸ö·ÖÉ¢ÔÚ¶à¸öplanrµÄÊı¾İµ½ÎÆÀí
+     * @param planr ¶à¸öÆ½ÃæµØÖ·µÄÖ¸ÕëÊı×é¡£°´ÕÕÄ¬ÈÏ¸ñÊ½ÅÅĞò£¬ÈçYUVÎª0(Y·ÖÁ¿)¡¢1(U·ÖÁ¿)¡¢2(V·ÖÁ¿); NV12Îª0(Y·ÖÁ¿)¡¢1(UV·ÖÁ¿)
+     * @param line_size ¶şÎ¬Í¼Æ¬µÄÃ¿ĞĞ×Ö½Ú´óĞ¡£¬Ò²ÊÇGPUÄÚ´æµÄnPitch
+     * @param width ÊÓÆµÖ¡¿í¶È
+     * @param height ÊÓÆµÖ¡¸ß¶È
+     */
+    virtual void upLoad(unsigned char* planr[], const int line_size[], const int width, const int height) = 0;
+    /**
+     * @description: Òì²½»æÖÆÎÆÀíÊı¾İ
+     */
+    virtual void draw() = 0;
 };
 
 extern "C"

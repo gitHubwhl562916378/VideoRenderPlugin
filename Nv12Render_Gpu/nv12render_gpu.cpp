@@ -11,7 +11,7 @@
 #ifdef _WIN32
 #include <Windows.h>
 #endif // WIN32
-#include <QMutex>
+#include <QMutexLocker>
 #include "nv12render_gpu.h"
 
 inline bool check(int e, int iLine, const char *szFile) {
@@ -59,12 +59,9 @@ Nv12Render_Gpu::~Nv12Render_Gpu()
 	qDebug() << "Nv12Render_Gpu::~Nv12Render_Gpu() out";
 }
 
-Q_GLOBAL_STATIC(QMutex, initMutex)
 void Nv12Render_Gpu::initialize(const int width, const int height, const bool horizontal, const bool vertical)
 {
     initializeOpenGLFunctions();
-
-	QMutexLocker initLock(initMutex());
     const char *vsrc =
             "attribute vec4 vertexIn; \
              attribute vec4 textureIn; \
@@ -201,8 +198,6 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, uvbuffer_id);
     glBufferData(GL_PIXEL_UNPACK_BUFFER_ARB, width * height* sizeof(char) / 2, nullptr, GL_STREAM_DRAW_ARB);
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
-	
-    glDisable(GL_DEPTH_TEST); //�򿪻��ڴ��ڴ�С�仯ʱ��������opengl������ʵ������Ҳ����Ҫ�򿪡�
 
 	ck(cuCtxSetCurrent(context));
 	ck(cuGraphicsGLRegisterBuffer(&cuda_ybuffer_resource, ybuffer_id, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
@@ -212,7 +207,8 @@ void Nv12Render_Gpu::initialize(const int width, const int height, const bool ho
 void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int height)
 {    
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
- //   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //�򿪻��ں�����������Ƶ֮������
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //�򿪻��ں�����������Ƶ֮������
+	glDisable(GL_DEPTH_TEST); //�򿪻��ڴ��ڴ�С�仯ʱ��������opengl������ʵ������Ҳ����Ҫ�򿪡�
     if(!nv12_dPtr)
     {
         return;
@@ -232,7 +228,7 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int
     m.dstPitch = d_y_size / height;
     m.WidthInBytes = width;
     m.Height = height;
-    ck(cuMemcpy2D(&m));
+    ck(cuMemcpy2DAsync(&m, 0));
     ck(cuGraphicsUnmapResources(1, &cuda_ybuffer_resource, 0));
 
     CUdeviceptr d_uvbuffer;
@@ -247,7 +243,7 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int
     m.dstPitch = d_uv_size / (height>>1);
     m.WidthInBytes = width;
     m.Height = (height>>1);
-    ck(cuMemcpy2D(&m));
+	ck(cuMemcpy2DAsync(&m, 0));
     ck(cuGraphicsUnmapResources(1, &cuda_uvbuffer_resource, 0));
 	ck(cuCtxSetCurrent(nullptr));
 
@@ -282,7 +278,8 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int
 void Nv12Render_Gpu::render(unsigned char* planr[], int line_size[], const int width, const int height)
 {
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST); //�򿪻��ڴ��ڴ�С�仯ʱ��������opengl������ʵ������Ҳ����Ҫ�򿪡�
     if(!planr)
     {
         return;
@@ -302,7 +299,7 @@ void Nv12Render_Gpu::render(unsigned char* planr[], int line_size[], const int w
     m.dstPitch = d_y_size / height;
     m.WidthInBytes = width;
     m.Height = height;
-    ck(cuMemcpy2DAsync(&m, 0));
+	ck(cuMemcpy2DAsync(&m, 0));
     ck(cuGraphicsUnmapResources(1, &cuda_ybuffer_resource, 0));
 
     CUdeviceptr d_uvbuffer;
@@ -317,7 +314,7 @@ void Nv12Render_Gpu::render(unsigned char* planr[], int line_size[], const int w
     m.dstPitch = d_uv_size / (height>>1);
     m.WidthInBytes = width;
     m.Height = (height>>1);
-    ck(cuMemcpy2DAsync(&m, 0));
+	ck(cuMemcpy2DAsync(&m, 0));
     ck(cuGraphicsUnmapResources(1, &cuda_uvbuffer_resource, 0));
 	ck(cuCtxSetCurrent(nullptr));
 
@@ -347,6 +344,141 @@ void Nv12Render_Gpu::render(unsigned char* planr[], int line_size[], const int w
     program.disableAttributeArray("textureIn");
     vbo.release();
     program.release();
+}
+
+void Nv12Render_Gpu::upLoad(unsigned char* nv12_dPtr, const int width, const int height)
+{
+	if (!nv12_dPtr)
+	{
+		return;
+	}
+	QMutexLocker lock(&mtx);
+	ck(cuCtxSetCurrent(context));
+	CUdeviceptr d_ybuffer;
+	size_t d_y_size;
+	ck(cuGraphicsMapResources(1, &cuda_ybuffer_resource, 0));
+	ck(cuGraphicsResourceGetMappedPointer(&d_ybuffer, &d_y_size, cuda_ybuffer_resource));
+	CUDA_MEMCPY2D m = { 0 };
+	m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.srcDevice = reinterpret_cast<CUdeviceptr>(nv12_dPtr);
+	m.srcPitch = width;
+	m.dstMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.dstDevice = d_ybuffer;
+	m.dstPitch = d_y_size / height;
+	m.WidthInBytes = width;
+	m.Height = height;
+	ck(cuMemcpy2DAsync(&m, 0));
+	ck(cuGraphicsUnmapResources(1, &cuda_ybuffer_resource, 0));
+
+	CUdeviceptr d_uvbuffer;
+	size_t d_uv_size;
+	ck(cuGraphicsMapResources(1, &cuda_uvbuffer_resource, 0));
+	ck(cuGraphicsResourceGetMappedPointer(&d_uvbuffer, &d_uv_size, cuda_uvbuffer_resource));
+	m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.srcDevice = reinterpret_cast<CUdeviceptr>(nv12_dPtr + width * height);
+	m.srcPitch = width;
+	m.dstMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.dstDevice = d_uvbuffer;
+	m.dstPitch = d_uv_size / (height >> 1);
+	m.WidthInBytes = width;
+	m.Height = (height >> 1);
+	ck(cuMemcpy2DAsync(&m, 0));
+	ck(cuGraphicsUnmapResources(1, &cuda_uvbuffer_resource, 0));
+	ck(cuCtxSetCurrent(nullptr));
+
+	glActiveTexture(GL_TEXTURE0 + 1);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, ybuffer_id);
+	glBindTexture(GL_TEXTURE_2D, idY);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+
+	glActiveTexture(GL_TEXTURE0 + 0);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, uvbuffer_id);
+	glBindTexture(GL_TEXTURE_2D, idUV);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width >> 1, height >> 1, GL_RG, GL_UNSIGNED_BYTE, nullptr);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+}
+
+void Nv12Render_Gpu::upLoad(unsigned char* planr[], const int line_size[], const int width, const int height)
+{
+	if (!planr)
+	{
+		return;
+	}
+	QMutexLocker lock(&mtx);
+	ck(cuCtxSetCurrent(context));
+	CUdeviceptr d_ybuffer;
+	size_t d_y_size;
+	ck(cuGraphicsMapResources(1, &cuda_ybuffer_resource, 0));
+	ck(cuGraphicsResourceGetMappedPointer(&d_ybuffer, &d_y_size, cuda_ybuffer_resource));
+	CUDA_MEMCPY2D m = { 0 };
+	m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.srcDevice = reinterpret_cast<CUdeviceptr>(planr[0]);
+	m.srcPitch = line_size[0];
+	m.dstMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.dstDevice = d_ybuffer;
+	m.dstPitch = d_y_size / height;
+	m.WidthInBytes = width;
+	m.Height = height;
+	ck(cuMemcpy2DAsync(&m, 0));
+	ck(cuGraphicsUnmapResources(1, &cuda_ybuffer_resource, 0));
+
+	CUdeviceptr d_uvbuffer;
+	size_t d_uv_size;
+	ck(cuGraphicsMapResources(1, &cuda_uvbuffer_resource, 0));
+	ck(cuGraphicsResourceGetMappedPointer(&d_uvbuffer, &d_uv_size, cuda_uvbuffer_resource));
+	m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.srcDevice = reinterpret_cast<CUdeviceptr>(planr[1]);
+	m.srcPitch = line_size[1];
+	m.dstMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.dstDevice = d_uvbuffer;
+	m.dstPitch = d_uv_size / (height >> 1);
+	m.WidthInBytes = width;
+	m.Height = (height >> 1);
+	ck(cuMemcpy2DAsync(&m, 0));
+	ck(cuGraphicsUnmapResources(1, &cuda_uvbuffer_resource, 0));
+	ck(cuCtxSetCurrent(nullptr));
+
+	glActiveTexture(GL_TEXTURE0 + 1);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, ybuffer_id);
+	glBindTexture(GL_TEXTURE_2D, idY);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+
+	glActiveTexture(GL_TEXTURE0 + 0);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, uvbuffer_id);
+	glBindTexture(GL_TEXTURE_2D, idUV);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width >> 1, height >> 1, GL_RG, GL_UNSIGNED_BYTE, nullptr);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+}
+
+void Nv12Render_Gpu::draw()
+{
+	QMutexLocker lock(&mtx);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
+
+	program.bind();
+	vbo.bind();
+	program.enableAttributeArray("vertexIn");
+	program.enableAttributeArray("textureIn");
+	program.setAttributeBuffer("vertexIn", GL_FLOAT, 0, 2, 2 * sizeof(GLfloat));
+	program.setAttributeBuffer("textureIn", GL_FLOAT, 2 * 4 * sizeof(GLfloat), 2, 2 * sizeof(GLfloat));
+
+	glActiveTexture(GL_TEXTURE0 + 1);
+	glBindTexture(GL_TEXTURE_2D, idY);
+
+	glActiveTexture(GL_TEXTURE0 + 0);
+	glBindTexture(GL_TEXTURE_2D, idUV);
+
+	program.setUniformValue("textureY", 1);
+	program.setUniformValue("textureUV", 0);
+	glDrawArrays(GL_QUADS, 0, 4);
+	program.disableAttributeArray("vertexIn");
+	program.disableAttributeArray("textureIn");
+	vbo.release();
+	program.release();
 }
 
 VideoRender* createRender(void *ctx)

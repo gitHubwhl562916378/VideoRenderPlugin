@@ -1,4 +1,4 @@
-#include <QMutex>
+#include <QMutexLocker>
 #include "ColorSpace.h"
 #include "nv2rgbrender_gpu.h"
 
@@ -54,12 +54,9 @@ Nv2RGBRender_Gpu::~Nv2RGBRender_Gpu()
 	qDebug() << "Nv2RGBRender_Gpu::~Nv2RGBRender_Gpu() out";
 }
 
-Q_GLOBAL_STATIC(QMutex, initMutex)
 void Nv2RGBRender_Gpu::initialize(const int width, const int height, const bool horizontal, const bool vertical)
 {
 	initializeOpenGLFunctions();
-
-	QMutexLocker initLock(initMutex());
 	const char *vsrc =
 		"attribute vec4 vertexIn; \
              attribute vec4 textureIn; \
@@ -160,7 +157,7 @@ void Nv2RGBRender_Gpu::initialize(const int width, const int height, const bool 
 	glGenTextures(1, &texId);
 
 	glBindTexture(GL_TEXTURE_2D, texId);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr); //前一个RGBA是显示所需的格式，经测试RGBA可以，其它未知;后一个需要通道数相同的数据格式，此例是BGRA
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr); //前一个RGBA是opengl内部储存格式，经测试RGBA可以;后一个是外部储存格式
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -172,8 +169,6 @@ void Nv2RGBRender_Gpu::initialize(const int width, const int height, const bool 
 	glBufferData(GL_PIXEL_UNPACK_BUFFER_ARB, width * height * 4 * sizeof(char), nullptr, GL_STREAM_DRAW_ARB);
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
 
-	glDisable(GL_DEPTH_TEST); //�򿪻��ڴ��ڴ�С�仯ʱ��������opengl������ʵ������Ҳ����Ҫ�򿪡�
-
 	ck(cuCtxSetCurrent(context));
 	ck(cuGraphicsGLRegisterBuffer(&cuda_tex_resource, tex_bufferId, CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD));
 }
@@ -181,7 +176,8 @@ void Nv2RGBRender_Gpu::initialize(const int width, const int height, const bool 
 void Nv2RGBRender_Gpu::render(unsigned char *nv12_dPtr, const int width, const int height)
 {
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	//   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //�򿪻��ں�����������Ƶ֮������
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //�򿪻��ں�����������Ƶ֮������
+	glDisable(GL_DEPTH_TEST); //�򿪻��ڴ��ڴ�С�仯ʱ��������opengl������ʵ������Ҳ����Ҫ�򿪡�
 	if (!nv12_dPtr)
 	{
 		return;
@@ -206,7 +202,7 @@ void Nv2RGBRender_Gpu::render(unsigned char *nv12_dPtr, const int width, const i
 	glActiveTexture(GL_TEXTURE0 + 0);
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, tex_bufferId);
 	glBindTexture(GL_TEXTURE_2D, texId);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, nullptr); //输入格式是BGRA
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
 
 	program.setUniformValue("uTexture", 0);
@@ -219,8 +215,6 @@ void Nv2RGBRender_Gpu::render(unsigned char *nv12_dPtr, const int width, const i
 
 void Nv2RGBRender_Gpu::render(unsigned char *planr[], int line_size[], const int width, const int height)
 {
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	if (!planr)
 	{
 		return;
@@ -256,6 +250,93 @@ void Nv2RGBRender_Gpu::render(unsigned char *planr[], int line_size[], const int
 	ck(cuMemcpy2DAsync(&m, 0));
 
 	render(reinterpret_cast<unsigned char*>(d_nv12_ptr), width, height);
+}
+
+void Nv2RGBRender_Gpu::upLoad(unsigned char* buffer, const int width, const int height)
+{
+	if (!buffer) {
+		return;
+	}
+
+	QMutexLocker lock(&mtx);
+	ck(cuCtxSetCurrent(context));
+	CUdeviceptr d_tex_buffer;
+	size_t d_tex_size;
+	ck(cuGraphicsMapResources(1, &cuda_tex_resource, 0));
+	ck(cuGraphicsResourceGetMappedPointer(&d_tex_buffer, &d_tex_size, cuda_tex_resource));
+	Nv12ToColor32<BGRA32>(reinterpret_cast<uint8_t *>(buffer), width, reinterpret_cast<uint8_t *>(d_tex_buffer), d_tex_size / height, width, height);
+	ck(cuGraphicsUnmapResources(1, &cuda_tex_resource, 0));
+	ck(cuCtxSetCurrent(nullptr));
+
+	glActiveTexture(GL_TEXTURE0 + 0);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, tex_bufferId);
+	glBindTexture(GL_TEXTURE_2D, texId);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, nullptr); //输入格式是BGRA
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+}
+
+void Nv2RGBRender_Gpu::upLoad(unsigned char* planr[], const int line_size[], const int width, const int height)
+{
+	if (!planr)
+	{
+		return;
+	}
+
+	ck(cuCtxSetCurrent(context));
+	if (!d_nv12_ptr)
+	{
+		ck(cuMemAlloc(&d_nv12_ptr, width * height * sizeof(uint8_t) * 3 / 2));
+	}
+
+	//拷贝y分量
+	CUDA_MEMCPY2D m = { 0 };
+	m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.srcDevice = reinterpret_cast<CUdeviceptr>(planr[0]);
+	m.srcPitch = line_size[0];
+	m.dstMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.dstDevice = d_nv12_ptr;
+	m.dstPitch = width;
+	m.WidthInBytes = width;
+	m.Height = height;
+	ck(cuMemcpy2DAsync(&m, 0));
+
+	//拷贝uv分量
+	m.srcMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.srcDevice = reinterpret_cast<CUdeviceptr>(planr[1]);
+	m.srcPitch = line_size[1];
+	m.dstMemoryType = CU_MEMORYTYPE_DEVICE;
+	m.dstDevice = d_nv12_ptr + width * height;
+	m.dstPitch = width;
+	m.WidthInBytes = width;
+	m.Height = height / 2;
+	ck(cuMemcpy2DAsync(&m, 0));
+
+	upLoad(reinterpret_cast<unsigned char*>(d_nv12_ptr), width, height);
+}
+
+void Nv2RGBRender_Gpu::draw()
+{
+	QMutexLocker lock(&mtx);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
+
+	program.bind();
+	vbo.bind();
+	program.enableAttributeArray("vertexIn");
+	program.enableAttributeArray("textureIn");
+	program.setAttributeBuffer("vertexIn", GL_FLOAT, 0, 2, 2 * sizeof(GLfloat));
+	program.setAttributeBuffer("textureIn", GL_FLOAT, 2 * 4 * sizeof(GLfloat), 2, 2 * sizeof(GLfloat));
+
+	glActiveTexture(GL_TEXTURE0 + 0);
+	glBindTexture(GL_TEXTURE_2D, texId);
+
+	program.setUniformValue("uTexture", 0);
+	glDrawArrays(GL_QUADS, 0, 4);
+	program.disableAttributeArray("vertexIn");
+	program.disableAttributeArray("textureIn");
+	vbo.release();
+	program.release();
 }
 
 VideoRender *createRender(void *ctx)
