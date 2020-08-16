@@ -211,6 +211,8 @@ void Nv12Render_Gpu::render(unsigned char* nv12_dPtr, const int width, const int
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  //�򿪻��ں�����������Ƶ֮������
 	glDisable(GL_DEPTH_TEST); //�򿪻��ڴ��ڴ�С�仯ʱ��������opengl������ʵ������Ҳ����Ҫ�򿪡�
+	glDisable(GL_CULL_FACE);
+	glDepthMask(false);
     if(!nv12_dPtr)
     {
         return;
@@ -460,6 +462,8 @@ void Nv12Render_Gpu::draw()
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glDepthMask(false);
 
 	program.bind();
 	vbo.bind();
